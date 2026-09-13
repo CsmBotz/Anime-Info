@@ -5,7 +5,7 @@ from bot.utils.decorators import cooldown
 from bot.utils.formatting import escape_html
 
 def register_image_search_handlers(app: Client):
-    @app.on_message(filters.photo | (filters.reply & filters.command("find")))
+    @app.on_message(filters.photo | (filters.reply & filters.command(["find", "whatanime"])))
     @cooldown(seconds=10)
     async def image_search_cmd(client: Client, message: Message):
         photo = message.photo
@@ -13,15 +13,15 @@ def register_image_search_handlers(app: Client):
             photo = message.reply_to_message.photo
 
         if not photo:
-            return  # Not a photo search request
+            return
 
-        status_msg = await message.reply_text("🔎 Searching trace.moe for matching anime scene...")
+        status_msg = await message.reply_text("› Searching trace.moe database...")
         try:
             file_bytes = await client.download_media(photo.file_id, in_memory=True)
             res = await TraceMoeFetcher.search_by_image_bytes(file_bytes.getvalue())
             results = res.get("result", [])
             if not results:
-                await status_msg.edit_text("❌ No matching anime scene found.")
+                await status_msg.edit_text("[-] No matching anime scene identified.")
                 return
 
             top = results[0]
@@ -34,12 +34,11 @@ def register_image_search_handlers(app: Client):
             seconds = from_sec % 60
 
             text = (
-                f"🎬 <b>Match Found: {escape_html(title)}</b>\n"
-                f"<b>Episode:</b> {episode}\n"
-                f"<b>Timestamp:</b> {minutes:02d}:{seconds:02d}\n"
-                f"<b>Similarity:</b> {similarity}%"
+                f"<b>Match Identified: {escape_html(title)}</b>\n"
+                f"• Episode: <b>{episode}</b>\n"
+                f"• Timestamp: <b>{minutes:02d}:{seconds:02d}</b>\n"
+                f"• Similarity: <b>{similarity}%</b>"
             )
             await status_msg.edit_text(text)
         except Exception as e:
-            await status_msg.edit_text(f"❌ Failed to search image: {escape_html(str(e))}")
-
+            await status_msg.edit_text(f"[!] Failed to search image: {escape_html(str(e))}")

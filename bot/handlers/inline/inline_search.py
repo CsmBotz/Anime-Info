@@ -9,7 +9,6 @@ def register_inline_handlers(app: Client):
         query = inline_query.query.strip()
         
         if not query:
-            # Show trending titles on empty query
             media_list = await AniListFetcher.get_trending(page=1, per_page=10)
         else:
             data = await AniListFetcher.search_anime(query, page=1, per_page=10)
@@ -32,8 +31,8 @@ def register_inline_handlers(app: Client):
 
             markup = InlineKeyboardMarkup([
                 [
-                    InlineKeyboardButton("➕ Watchlist", callback_data=f"wl_add:{anime_id}"),
-                    InlineKeyboardButton("⭐ Favorite", callback_data=f"fav_add:{anime_id}")
+                    InlineKeyboardButton("[+] Watchlist", callback_data=f"wl_add:{anime_id}"),
+                    InlineKeyboardButton("★ Favorite", callback_data=f"fav_add:{anime_id}")
                 ]
             ])
 
@@ -49,4 +48,3 @@ def register_inline_handlers(app: Client):
             )
 
         await inline_query.answer(results, cache_time=300)
-

@@ -50,6 +50,8 @@ async def set_bot_commands(app: Client):
         BotCommand("filler", "Check filler episode breakdown"),
         BotCommand("watchlist", "View & edit your anime watchlist"),
         BotCommand("favorites", "View your favorite anime list"),
+        BotCommand("remove_intro", "Trim intro from video"),
+        BotCommand("remove_outro", "Trim outro from video"),
         BotCommand("merge_video", "Merge intro with video file"),
         BotCommand("deleteme", "Delete all your user data")
     ]

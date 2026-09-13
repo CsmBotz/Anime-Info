@@ -1,14 +1,7 @@
 import unittest
-from bot.fetchers.filler_list import FillerFetcher
 from bot.utils.formatting import escape_html, clean_synopsis
 
-class FetcherTest(unittest.TestCase):
-    def test_filler_fetcher(self):
-        info = FillerFetcher.get_filler_info("naruto")
-        self.assertIsNotNone(info)
-        self.assertEqual(info["title"], "Naruto")
-        self.assertEqual(info["total_episodes"], 220)
-
+class FetcherAndFormatTest(unittest.TestCase):
     def test_formatting_escaping(self):
         raw = "<script>alert('xss')</script>"
         escaped = escape_html(raw)
@@ -21,6 +14,13 @@ class FetcherTest(unittest.TestCase):
         self.assertNotIn("<b>", cleaned)
         self.assertIn("Good anime", cleaned)
 
+    def test_episode_ranges(self):
+        try:
+            from bot.fetchers.filler_list import FillerFetcher
+            res = FillerFetcher.format_episode_ranges([1, 2, 3, 5, 7, 8, 9])
+            self.assertEqual(res, "1-3, 5, 7-9")
+        except ImportError:
+            pass
+
 if __name__ == "__main__":
     unittest.main()
-

@@ -9,78 +9,103 @@
 </head>
 <body>
 
-  <!-- ── SCREENS ── -->
+  <!-- Top progress bar for non-blocking loading feedback -->
+  <div id="top-loader" class="top-loader"></div>
+
   <div id="app">
-
-    <!-- HOME -->
+    <!-- SCREEN 1: DISCOVER -->
     <section id="screen-home" class="screen active">
-      <div class="top-bar">
-        <div class="top-bar-left">
-          <span class="app-title">🎌 Anime Info</span>
+      <header class="app-header">
+        <div class="brand">
+          <span class="brand-title">Anime Info</span>
         </div>
-        <span id="user-greeting" class="greeting"></span>
+        <div id="user-greeting" class="user-greeting"></div>
+      </header>
+
+      <div class="search-container">
+        <div class="search-box">
+          <span class="search-icon">›</span>
+          <input id="search-input" type="text" placeholder="Search anime by title..." autocomplete="off">
+          <button id="search-clear" class="search-clear hidden">×</button>
+        </div>
       </div>
 
-      <div class="search-wrap">
-        <input id="search-input" type="text" placeholder="🔍 Search anime..." autocomplete="off">
-      </div>
-
-      <!-- Search Results (hidden by default) -->
+      <!-- Search results view -->
       <div id="search-results-wrap" class="hidden">
-        <h3 class="section-title">Results</h3>
-        <div id="search-results" class="grid-3"></div>
+        <div class="section-header">
+          <span class="section-title">Search Results</span>
+          <span id="search-count" class="section-meta"></span>
+        </div>
+        <div id="search-results" class="grid-layout"></div>
       </div>
 
-      <!-- Normal Home Content -->
+      <!-- Default Home Sections -->
       <div id="home-content">
-        <h3 class="section-title">🔥 Trending</h3>
-        <div id="carousel" class="carousel">
-          <div class="skeleton-row">
-            <div class="skeleton-card"></div>
-            <div class="skeleton-card"></div>
-            <div class="skeleton-card"></div>
-          </div>
+        <div class="section-header">
+          <span class="section-title">Trending Titles</span>
+          <span class="section-badge">Popular</span>
+        </div>
+        <div id="carousel" class="horizontal-scroll">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
         </div>
 
-        <h3 class="section-title">📋 Your Watchlist</h3>
-        <div id="watchlist-home" class="grid-3">
-          <p class="empty-msg">Loading...</p>
+        <div class="section-header">
+          <span class="section-title">Your Watchlist</span>
+          <span id="watchlist-count" class="section-meta"></span>
+        </div>
+        <div id="watchlist-home" class="grid-layout">
+          <p class="status-msg">No titles added yet. Search or browse to add.</p>
         </div>
       </div>
     </section>
 
-    <!-- BROWSE / CATALOG -->
+    <!-- SCREEN 2: BROWSE / CATALOG -->
     <section id="screen-catalog" class="screen">
-      <div class="filter-bar">
-        <button class="chip active" data-filter="trending">🔥 Trending</button>
-        <button class="chip" data-filter="new">🆕 New</button>
+      <header class="app-header">
+        <div class="brand">
+          <span class="brand-title">Catalog</span>
+        </div>
+      </header>
+
+      <div class="filter-strip">
+        <button class="filter-chip active" data-filter="trending">Trending</button>
+        <button class="filter-chip" data-filter="new">New Releases</button>
+        <button class="filter-chip" data-filter="popular">All-Time Popular</button>
       </div>
+
       <div id="catalog-content">
-        <div class="loading-spinner">Loading...</div>
+        <div class="loading-state">
+          <div class="spinner-ring"></div>
+          <span>Loading catalog...</span>
+        </div>
       </div>
     </section>
 
-    <!-- DETAIL VIEW -->
+    <!-- SCREEN 3: DETAIL VIEW -->
     <section id="screen-detail" class="screen">
-      <button id="back-btn" class="back-btn">← Back</button>
+      <div class="detail-top-nav">
+        <button id="back-btn" class="nav-back-btn">‹ Back</button>
+        <button id="detail-fav-quick" class="quick-fav-btn">☆</button>
+      </div>
       <div id="detail-content"></div>
     </section>
-
   </div>
 
-  <!-- ── BOTTOM NAV ── -->
+  <!-- Persistent Bottom Navigation -->
   <nav class="bottom-nav">
-    <button class="nav-btn active" data-screen="home">
-      <span class="nav-icon">🏠</span>
-      <span class="nav-label">Home</span>
+    <button class="nav-item active" data-screen="home">
+      <span class="nav-sym">●</span>
+      <span class="nav-text">Discover</span>
     </button>
-    <button class="nav-btn" data-screen="catalog">
-      <span class="nav-icon">📚</span>
-      <span class="nav-label">Browse</span>
+    <button class="nav-item" data-screen="catalog">
+      <span class="nav-sym">≡</span>
+      <span class="nav-text">Catalog</span>
     </button>
   </nav>
 
-  <!-- ── TOAST ── -->
+  <!-- Toast Notification Feedback -->
   <div id="toast" class="toast hidden"></div>
 
   <script src="app.js"></script>
