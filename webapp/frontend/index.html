@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anime Info Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Navigation Header -->
+    <header class="app-header">
+      <div class="user-badge">
+        <span id="user-name">Anime Explorer</span>
+      </div>
+      <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="home">Home</button>
+        <button class="tab-btn" data-tab="catalog">Catalog</button>
+        <button class="tab-btn" data-tab="watchlist">Watchlist</button>
+      </nav>
+    </header>
+
+    <!-- Screen 1: Home / Discover -->
+    <section id="screen-home" class="screen active">
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search anime...">
+      </div>
+
+      <h3>🔥 Trending Now</h3>
+      <div class="carousel" id="trending-carousel">
+        <div class="loading">Loading trending anime...</div>
+      </div>
+
+      <h3>📋 Your Tracker & Recommended</h3>
+      <div class="grid" id="recommended-grid">
+        <div class="loading">Loading recommendations...</div>
+      </div>
+    </section>
+
+    <!-- Screen 2: Browse / Catalog -->
+    <section id="screen-catalog" class="screen">
+      <div class="filter-chips">
+        <button class="chip active">All</button>
+        <button class="chip">Popular</button>
+        <button class="chip">New</button>
+      </div>
+
+      <div id="catalog-list">
+        <div class="loading">Loading catalog...</div>
+      </div>
+    </section>
+
+    <!-- Screen 3: Watchlist -->
+    <section id="screen-watchlist" class="screen">
+      <h3>Your Watchlist</h3>
+      <div class="grid" id="watchlist-grid">
+        <div class="loading">Loading watchlist...</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+

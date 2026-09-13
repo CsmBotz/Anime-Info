@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+bot/media/tmp/*
+!bot/media/tmp/.gitkeep
+
+# Virtual Environments
+venv/
+.venv/
+env/
