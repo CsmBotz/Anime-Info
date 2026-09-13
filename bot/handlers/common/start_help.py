@@ -1,5 +1,5 @@
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from bot.config import WEBAPP_URL
 from bot.db.users_repo import UsersRepo
 
@@ -34,7 +34,7 @@ def register_start_help_handlers(app: Client):
         reply_markup = None
         if WEBAPP_URL:
             reply_markup = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Open Mini App", web_app={"url": WEBAPP_URL})]
+                [InlineKeyboardButton("🚀 Open Mini App", web_app=WebAppInfo(url=WEBAPP_URL))]
             ])
             
         welcome_text = (
