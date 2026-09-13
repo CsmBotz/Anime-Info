@@ -55,10 +55,9 @@ async def catalog_page(
     if filter == "trending":
         items = await AniListFetcher.get_trending(page=1, per_page=30)
     elif filter == "new":
-        data = await AniListFetcher.search_anime("", page=1, per_page=30)
-        items = data.get("media", [])
+        items = await AniListFetcher.get_new_releases(page=1, per_page=30)
     else:
-        items = await AniListFetcher.get_trending(page=1, per_page=30)
+        items = await AniListFetcher.get_popular(page=1, per_page=30)
 
     # Sort alphabetically
     items_sorted = sorted(
@@ -80,25 +79,10 @@ async def catalog_page(
 @app.get("/api/anime/{anime_id}")
 async def get_anime_detail(anime_id: int, current_user: Dict[str, Any] = Depends(get_current_user)):
     user_id = current_user.get("id")
-    # Search by ID via AniList
-    import httpx
-    query = """
-    query ($id: Int) {
-      Media(id: $id, type: ANIME) {
-        id title { romaji english native }
-        status averageScore episodes description
-        coverImage { large extraLarge }
-        bannerImage siteUrl genres
-        nextAiringEpisode { airingAt episode }
-      }
-    }
-    """
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(
-            "https://graphql.anilist.co",
-            json={"query": query, "variables": {"id": anime_id}}
-        )
-        data = resp.json().get("data", {}).get("Media", {})
+
+    data = await AniListFetcher.get_by_id(anime_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Anime not found")
 
     # Enrich with user-specific data
     watchlist_items = await UsersRepo.get_watchlist(user_id, limit=100) if user_id else []
