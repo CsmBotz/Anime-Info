@@ -1,33 +1,166 @@
-from typing import Dict, Any, List, Optional
+import re
+import httpx
+import asyncio
+from typing import Optional, Dict, Any, List
+from bot.utils.logging import get_logger
 
-# Static filler dataset for popular shows
-FILLER_DATA: Dict[str, Dict[str, Any]] = {
-    "naruto": {
-        "title": "Naruto",
-        "total_episodes": 220,
-        "filler_episodes": [26, 97, 101, 102, 103, 104, 105, 106, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219],
-        "filler_percentage": "41%"
-    },
-    "bleach": {
-        "title": "Bleach",
-        "total_episodes": 366,
-        "filler_episodes": [33, 50, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 147, 148, 149, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 204, 205, 206, 213, 214, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 287, 298, 299, 303, 304, 305, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 355],
-        "filler_percentage": "45%"
-    },
-    "one piece": {
-        "title": "One Piece",
-        "total_episodes": 1000,
-        "filler_episodes": [54, 55, 56, 57, 58, 59, 60, 61, 98, 99, 101, 102, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 220, 221, 222, 223, 224, 225, 226, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 382, 383, 384, 406, 407, 426, 427, 428, 429, 457, 458, 492, 542, 575, 576, 577, 578, 590, 626, 627, 628, 747, 748, 749, 750, 780, 781, 782, 895, 896, 1029],
-        "filler_percentage": "9%"
-    }
+logger = get_logger(__name__)
+
+BASE_URL = "https://www.animefillerlist.com/shows"
+
+# Slug map for common search aliases → animefillerlist.com slug
+SLUG_MAP = {
+    "naruto": "naruto",
+    "naruto shippuden": "naruto-shippuden",
+    "shippuden": "naruto-shippuden",
+    "bleach": "bleach",
+    "one piece": "one-piece",
+    "fairy tail": "fairy-tail",
+    "dragon ball z": "dragon-ball-z",
+    "dbz": "dragon-ball-z",
+    "dragon ball super": "dragon-ball-super",
+    "boruto": "boruto-naruto-next-generations",
+    "black clover": "black-clover",
+    "detective conan": "detective-conan",
+    "case closed": "detective-conan",
+    "sword art online": "sword-art-online",
+    "sao": "sword-art-online",
+    "attack on titan": "attack-on-titan",
+    "aot": "attack-on-titan",
+    "fullmetal alchemist": "fullmetal-alchemist-brotherhood",
+    "fmab": "fullmetal-alchemist-brotherhood",
+    "hunter x hunter": "hunter-x-hunter-2011",
+    "hxh": "hunter-x-hunter-2011",
+    "inuyasha": "inuyasha",
+    "yu yu hakusho": "yu-yu-hakusho",
+    "yu-gi-oh": "yu-gi-oh-duel-monsters",
+    "soul eater": "soul-eater",
+    "ao no exorcist": "ao-no-exorcist",
+    "blue exorcist": "ao-no-exorcist",
+    "d gray man": "d-gray-man",
+    "d.gray-man": "d-gray-man",
+    "katekyo hitman reborn": "katekyo-hitman-reborn",
+    "reborn": "katekyo-hitman-reborn",
+    "toriko": "toriko",
+    "pokemon": "pokemon",
+    "digimon": "digimon-adventure",
+    "claymore": "claymore",
+    "rurouni kenshin": "rurouni-kenshin",
+    "samurai x": "rurouni-kenshin",
+    "gintama": "gintama",
 }
+
+def _query_to_slug(query: str) -> str:
+    q = query.strip().lower()
+    # Direct map first
+    if q in SLUG_MAP:
+        return SLUG_MAP[q]
+    # Partial match
+    for key, slug in SLUG_MAP.items():
+        if key in q or q in key:
+            return slug
+    # Auto-slugify: lowercase, replace spaces/special chars with -
+    slug = re.sub(r"[^a-z0-9]+", "-", q).strip("-")
+    return slug
+
+async def _fetch_filler_page(slug: str) -> Optional[str]:
+    url = f"{BASE_URL}/{slug}"
+    try:
+        async with httpx.AsyncClient(timeout=12.0, follow_redirects=True, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; AnimeInfoBot/1.0)"
+        }) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                return resp.text
+            logger.warning(f"animefillerlist.com returned {resp.status_code} for slug '{slug}'")
+            return None
+    except Exception as e:
+        logger.error(f"Failed to fetch filler page for slug '{slug}': {e}")
+        return None
+
+def _parse_filler_page(html: str, title_query: str) -> Optional[Dict[str, Any]]:
+    """Parse animefillerlist.com episode table HTML."""
+    # Extract show title
+    title_match = re.search(r'<h1[^>]*>([^<]+)</h1>', html)
+    title = title_match.group(1).strip() if title_match else title_query.title()
+
+    # Extract episode rows: each row has episode number and type (Manga Canon, Filler, Mixed Canon/Filler, etc.)
+    # Pattern: <td class="...">1</td> ... <td>Manga Canon</td>
+    rows = re.findall(
+        r'<tr[^>]*class="[^"]*(?:filler|canon|mixed)[^"]*"[^>]*>.*?</tr>',
+        html, re.DOTALL | re.IGNORECASE
+    )
+
+    # Fallback: grab all <tr> rows from the episode table
+    if not rows:
+        table_match = re.search(r'<table[^>]*id="[^"]*EpisodeList[^"]*"[^>]*>(.*?)</table>', html, re.DOTALL | re.IGNORECASE)
+        if table_match:
+            rows = re.findall(r'<tr[^>]*>(.*?)</tr>', table_match.group(1), re.DOTALL)
+
+    filler_eps = []
+    canon_eps = []
+    mixed_eps = []
+    total = 0
+
+    for row in rows:
+        cells = re.findall(r'<td[^>]*>(.*?)</td>', row, re.DOTALL)
+        cells = [re.sub(r'<[^>]+>', '', c).strip() for c in cells]
+        if len(cells) < 2:
+            continue
+        ep_str = cells[0]
+        ep_type = cells[-1].lower() if len(cells) >= 2 else ""
+        # Episode number might be a range like "1-6"
+        ep_range = re.findall(r'\d+', ep_str)
+        if not ep_range:
+            continue
+        ep_nums = list(range(int(ep_range[0]), int(ep_range[-1]) + 1))
+        total += len(ep_nums)
+        if "filler" in ep_type and "mixed" not in ep_type:
+            filler_eps.extend(ep_nums)
+        elif "mixed" in ep_type:
+            mixed_eps.extend(ep_nums)
+        else:
+            canon_eps.extend(ep_nums)
+
+    if total == 0:
+        return None
+
+    filler_pct = round(len(filler_eps) / total * 100) if total else 0
+
+    return {
+        "title": title,
+        "total_episodes": total,
+        "filler_episodes": sorted(filler_eps),
+        "mixed_episodes": sorted(mixed_eps),
+        "canon_episodes": sorted(canon_eps),
+        "filler_count": len(filler_eps),
+        "filler_percentage": f"{filler_pct}%",
+        "source_url": f"{BASE_URL}/{_query_to_slug(title_query)}"
+    }
 
 class FillerFetcher:
     @staticmethod
-    def get_filler_info(query: str) -> Optional[Dict[str, Any]]:
-        query_clean = query.strip().lower()
-        for key, data in FILLER_DATA.items():
-            if key in query_clean or query_clean in key:
-                return data
-        return None
+    async def get_filler_info(query: str) -> Optional[Dict[str, Any]]:
+        slug = _query_to_slug(query)
+        html = await _fetch_filler_page(slug)
+        if not html:
+            return None
+        result = _parse_filler_page(html, query)
+        return result
 
+    @staticmethod
+    def format_episode_ranges(episodes: List[int]) -> str:
+        """Convert flat list to compact range string: [1,2,3,7,8] → '1-3, 7-8'."""
+        if not episodes:
+            return "None"
+        eps = sorted(set(episodes))
+        ranges = []
+        start = end = eps[0]
+        for ep in eps[1:]:
+            if ep == end + 1:
+                end = ep
+            else:
+                ranges.append(f"{start}" if start == end else f"{start}-{end}")
+                start = end = ep
+        ranges.append(f"{start}" if start == end else f"{start}-{end}")
+        return ", ".join(ranges)
