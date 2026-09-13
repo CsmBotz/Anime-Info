@@ -2,65 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Anime Info Mini App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Anime Info</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- ── SCREENS ── -->
   <div id="app">
-    <!-- Navigation Header -->
-    <header class="app-header">
-      <div class="user-badge">
-        <span id="user-name">Anime Explorer</span>
-      </div>
-      <nav class="nav-tabs">
-        <button class="tab-btn active" data-tab="home">Home</button>
-        <button class="tab-btn" data-tab="catalog">Catalog</button>
-        <button class="tab-btn" data-tab="watchlist">Watchlist</button>
-      </nav>
-    </header>
 
-    <!-- Screen 1: Home / Discover -->
+    <!-- HOME -->
     <section id="screen-home" class="screen active">
-      <div class="search-bar">
-        <input type="text" id="search-input" placeholder="Search anime...">
+      <div class="top-bar">
+        <div class="top-bar-left">
+          <span class="app-title">🎌 Anime Info</span>
+        </div>
+        <span id="user-greeting" class="greeting"></span>
       </div>
 
-      <h3>🔥 Trending Now</h3>
-      <div class="carousel" id="trending-carousel">
-        <div class="loading">Loading trending anime...</div>
+      <div class="search-wrap">
+        <input id="search-input" type="text" placeholder="🔍 Search anime..." autocomplete="off">
       </div>
 
-      <h3>📋 Your Tracker & Recommended</h3>
-      <div class="grid" id="recommended-grid">
-        <div class="loading">Loading recommendations...</div>
+      <!-- Search Results (hidden by default) -->
+      <div id="search-results-wrap" class="hidden">
+        <h3 class="section-title">Results</h3>
+        <div id="search-results" class="grid-3"></div>
+      </div>
+
+      <!-- Normal Home Content -->
+      <div id="home-content">
+        <h3 class="section-title">🔥 Trending</h3>
+        <div id="carousel" class="carousel">
+          <div class="skeleton-row">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </div>
+
+        <h3 class="section-title">📋 Your Watchlist</h3>
+        <div id="watchlist-home" class="grid-3">
+          <p class="empty-msg">Loading...</p>
+        </div>
       </div>
     </section>
 
-    <!-- Screen 2: Browse / Catalog -->
+    <!-- BROWSE / CATALOG -->
     <section id="screen-catalog" class="screen">
-      <div class="filter-chips">
-        <button class="chip active">All</button>
-        <button class="chip">Popular</button>
-        <button class="chip">New</button>
+      <div class="filter-bar">
+        <button class="chip active" data-filter="trending">🔥 Trending</button>
+        <button class="chip" data-filter="new">🆕 New</button>
       </div>
-
-      <div id="catalog-list">
-        <div class="loading">Loading catalog...</div>
+      <div id="catalog-content">
+        <div class="loading-spinner">Loading...</div>
       </div>
     </section>
 
-    <!-- Screen 3: Watchlist -->
-    <section id="screen-watchlist" class="screen">
-      <h3>Your Watchlist</h3>
-      <div class="grid" id="watchlist-grid">
-        <div class="loading">Loading watchlist...</div>
-      </div>
+    <!-- DETAIL VIEW -->
+    <section id="screen-detail" class="screen">
+      <button id="back-btn" class="back-btn">← Back</button>
+      <div id="detail-content"></div>
     </section>
+
   </div>
+
+  <!-- ── BOTTOM NAV ── -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-screen="home">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-btn" data-screen="catalog">
+      <span class="nav-icon">📚</span>
+      <span class="nav-label">Browse</span>
+    </button>
+  </nav>
+
+  <!-- ── TOAST ── -->
+  <div id="toast" class="toast hidden"></div>
 
   <script src="app.js"></script>
 </body>
 </html>
-

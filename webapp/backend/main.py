@@ -12,21 +12,17 @@ from webapp.backend.auth import validate_telegram_init_data
 
 app = FastAPI(title="Anime Info Bot Mini App API")
 
-# CORS setup locked to Telegram origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://web.telegram.org", "https://telegram.org", "*"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 async def get_current_user(x_init_data: Optional[str] = Header(None)) -> Dict[str, Any]:
-    # Allow fallback for dev/demo if init_data not provided
     if not x_init_data:
-        # Return mock user for local preview/tests
-        return {"id": 12345678, "first_name": "DemoUser", "username": "demouser"}
-    
+        return {"id": 12345678, "first_name": "Demo", "username": "demouser"}
     user = validate_telegram_init_data(x_init_data)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired Telegram initData")
@@ -39,22 +35,37 @@ async def startup_event():
 @app.get("/api/discover")
 async def discover_page(current_user: Dict[str, Any] = Depends(get_current_user)):
     user_id = current_user.get("id")
-    trending = await AniListFetcher.get_trending(page=1, per_page=5)
-    watchlist = await UsersRepo.get_watchlist(user_id, limit=5) if user_id else []
-    
-    return {
-        "carousel": trending,
-        "recommended": watchlist
-    }
+    trending = await AniListFetcher.get_trending(page=1, per_page=10)
+    watchlist = await UsersRepo.get_watchlist(user_id, limit=10) if user_id else []
+    return {"carousel": trending, "watchlist": watchlist, "user": current_user}
+
+@app.get("/api/search")
+async def search_anime(q: str = "", current_user: Dict[str, Any] = Depends(get_current_user)):
+    if not q.strip():
+        items = await AniListFetcher.get_trending(page=1, per_page=20)
+        return {"results": items}
+    data = await AniListFetcher.search_anime(q.strip(), page=1, per_page=20)
+    return {"results": data.get("media", [])}
 
 @app.get("/api/catalog")
-async def catalog_page(genre: Optional[str] = None, current_user: Dict[str, Any] = Depends(get_current_user)):
-    data = await AniListFetcher.search_anime("", page=1, per_page=20)
-    items = data.get("media", [])
-    
-    # Sort alphabetically by title
-    items_sorted = sorted(items, key=lambda x: (x.get("title", {}).get("english") or x.get("title", {}).get("romaji") or "").lower())
-    
+async def catalog_page(
+    filter: Optional[str] = "trending",
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    if filter == "trending":
+        items = await AniListFetcher.get_trending(page=1, per_page=30)
+    elif filter == "new":
+        data = await AniListFetcher.search_anime("", page=1, per_page=30)
+        items = data.get("media", [])
+    else:
+        items = await AniListFetcher.get_trending(page=1, per_page=30)
+
+    # Sort alphabetically
+    items_sorted = sorted(
+        items,
+        key=lambda x: (x.get("title", {}).get("english") or x.get("title", {}).get("romaji") or "").lower()
+    )
+
     # Group by first letter
     grouped = {}
     for item in items_sorted:
@@ -66,10 +77,50 @@ async def catalog_page(genre: Optional[str] = None, current_user: Dict[str, Any]
 
     return {"catalog": grouped}
 
-@app.get("/api/watchlist")
-async def get_watchlist(current_user: Dict[str, Any] = Depends(get_current_user)):
+@app.get("/api/anime/{anime_id}")
+async def get_anime_detail(anime_id: int, current_user: Dict[str, Any] = Depends(get_current_user)):
     user_id = current_user.get("id")
-    return await UsersRepo.get_watchlist(user_id)
+    # Search by ID via AniList
+    import httpx
+    query = """
+    query ($id: Int) {
+      Media(id: $id, type: ANIME) {
+        id title { romaji english native }
+        status averageScore episodes description
+        coverImage { large extraLarge }
+        bannerImage siteUrl genres
+        nextAiringEpisode { airingAt episode }
+      }
+    }
+    """
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.post(
+            "https://graphql.anilist.co",
+            json={"query": query, "variables": {"id": anime_id}}
+        )
+        data = resp.json().get("data", {}).get("Media", {})
+
+    # Enrich with user-specific data
+    watchlist_items = await UsersRepo.get_watchlist(user_id, limit=100) if user_id else []
+    in_watchlist = any(w.get("anime_id") == anime_id for w in watchlist_items)
+    wl_item = next((w for w in watchlist_items if w.get("anime_id") == anime_id), None)
+    is_favorite = await UsersRepo.is_favorite(user_id, anime_id) if user_id else False
+
+    data["in_watchlist"] = in_watchlist
+    data["is_favorite"] = is_favorite
+    data["progress"] = wl_item.get("progress", 0) if wl_item else 0
+
+    return data
+
+@app.get("/api/watchlist")
+async def get_watchlist_api(current_user: Dict[str, Any] = Depends(get_current_user)):
+    user_id = current_user.get("id")
+    items = await UsersRepo.get_watchlist(user_id, limit=50)
+    # Convert ObjectId to string for JSON
+    for item in items:
+        if "_id" in item:
+            item["_id"] = str(item["_id"])
+    return items
 
 class WatchlistAddReq(BaseModel):
     anime_id: int
@@ -81,6 +132,12 @@ class WatchlistAddReq(BaseModel):
 async def add_watchlist(req: WatchlistAddReq, current_user: Dict[str, Any] = Depends(get_current_user)):
     user_id = current_user.get("id")
     success = await UsersRepo.add_to_watchlist(user_id, req.anime_id, req.title, req.poster_image, req.total_episodes)
+    return {"success": success, "added": success}
+
+@app.delete("/api/watchlist/{anime_id}")
+async def remove_watchlist(anime_id: int, current_user: Dict[str, Any] = Depends(get_current_user)):
+    user_id = current_user.get("id")
+    success = await UsersRepo.remove_from_watchlist(user_id, anime_id)
     return {"success": success}
 
 @app.patch("/api/watchlist/{anime_id}/progress")
@@ -89,8 +146,18 @@ async def update_progress(anime_id: int, current_user: Dict[str, Any] = Depends(
     new_prog = await UsersRepo.update_tracker_progress(user_id, anime_id, delta=1)
     return {"progress": new_prog}
 
-# Serve frontend static files
+class FavoriteReq(BaseModel):
+    anime_id: int
+    title: str
+    poster_image: Optional[str] = ""
+
+@app.post("/api/favorites/toggle")
+async def toggle_favorite(req: FavoriteReq, current_user: Dict[str, Any] = Depends(get_current_user)):
+    user_id = current_user.get("id")
+    is_now_fav = await UsersRepo.toggle_favorite(user_id, req.anime_id, req.title, req.poster_image)
+    return {"is_favorite": is_now_fav}
+
+# Serve frontend static files — must be LAST
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 if os.path.exists(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
-
