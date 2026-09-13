@@ -5,6 +5,12 @@ from bot.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+def get_db_or_fallback(client: AsyncIOMotorClient, fallback_name: str):
+    try:
+        return client.get_default_database()
+    except Exception:
+        return client.get_database(fallback_name)
+
 class MongoClients:
     _instance = None
 
@@ -32,13 +38,13 @@ class MongoClients:
             try:
                 if USERS_MONGO_URI:
                     self.users_client = AsyncIOMotorClient(USERS_MONGO_URI, serverSelectionTimeoutMS=5000)
-                    self.users_db = self.users_client.get_database()
+                    self.users_db = get_db_or_fallback(self.users_client, "users_db")
                 if BOT_MONGO_URI:
                     self.bot_client = AsyncIOMotorClient(BOT_MONGO_URI, serverSelectionTimeoutMS=5000)
-                    self.bot_db = self.bot_client.get_database()
+                    self.bot_db = get_db_or_fallback(self.bot_client, "bot_db")
                 if CACHE_MONGO_URI:
                     self.cache_client = AsyncIOMotorClient(CACHE_MONGO_URI, serverSelectionTimeoutMS=5000)
-                    self.cache_db = self.cache_client.get_database()
+                    self.cache_db = get_db_or_fallback(self.cache_client, "cache_db")
                 
                 await self.setup_indexes()
                 self._initialized = True
